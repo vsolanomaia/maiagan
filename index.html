@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobros BG&A</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <style>
+        body {
+            margin: 0px;
+            padding: 0;
+            background-image: url('https://callmaia.com/wp-content/uploads/2023/08/FondoCobros.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            justify-content: flex-end;
+            height: 95vh;
+            width: 95vw;
+            margin: 0 auto;
+        }
+        
+        #submitBtn {
+          margin-top: 0;
+        }
+        
+        .video-container {
+            position: sticky;
+            top: 10px;
+            right: 0px;
+            bottom: 10px;
+        }
+
+        #loopVideo, #responseVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+                
+        #videoOutput {
+          max-width: 100%;
+          max-height: 100%;
+        }
+
+        #question {
+          max-width: 95vw !important;
+          max-height: 95vh;
+        }
+        
+        .hidden {
+          display:none;
+        }
+
+        .video-container {
+            height: 100%;
+            width: 100%;
+        }
+      
+        .chat-container {
+            height: 300px !important;
+            max-width: 95%;
+            right: 5px;
+        }
+
+        .btn-rojo {
+            background-color: darkred;
+            color: white;
+        }
+
+        #chat-container {
+            height: 300px;
+            overflow:hidden !important; 
+        }
+
+      @media (min-width: 768px) {
+          .chat-container {
+              display:flex; 
+              flex-direction:column; 
+              align-items:stretch; 
+              height: 300px !important;
+              width: 95vw !important;
+              right: 5px;
+          }
+      }
+      
+      </style>
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="video-container" style="width:95vw; display:flex; justify-content:center; flex-direction:column;">
+          <video id="loopVideo" class="video-dimensiones" src="https://ugc-idle.s3-us-west-2.amazonaws.com/est_26b3c5b67818a51bf899fb8390cf742f.mp4" loop autoplay muted></video>
+          <video id="responseVideo" class="hidden video-dimensiones" autoplay></video>
+        </div>
+        <div class="chat-container" style="width:90%; display:flex; flex-direction:column;">
+          <div class="card overflow-auto" style="height:100%; border:none;">
+              <div class="card-body" id="chat-container" style="height:95vh;">
+                  {% for c in chat %}
+                      <p>{{c}}</p>
+                  {% endfor %}
+              </div>
+          </div>     
+          <form id="chat-form" action="/" method="post">
+              <div class="col-12">
+                  <textarea class="form-control" name="question" id="question" rows=3 width=95% ></textarea>
+                    <img src=https://image.pngaaa.com/60/971060-small.png alt=Mic icon style=width:30px;height:30px; data-bs-toggle=tooltip data-bs-placement=top title=Presione aquí para escuchar su consulta>
+                    <button class="btn btn-primary btn-rojo ms-2" type="submit">Enviar</button>
+              </div>
+          </form>
+      </div>
+    
+      <div id="button-container"></div>
+
+      <style>
+          .video-dimensiones {
+              width:100%;
+              height:100%;
+              transition:opacity 1s ease-in-out;
+          }
+          .hidden {
+              opacity:0;
+          }
+          .card {
+              background-color:transparent;
+          }
+
+          @media (max-width: 95vh) {
+              .container {
+                  flex-direction: column;
+              }
+          }
+      </style>
+
+      <script>
+          let firstTime = true;
+          let responseVideoPlaying = false;
+          const chatForm = document.querySelector('#chat-form');
+          const chatContainer = document.querySelector('#chat-container');
+          const loopVideo = document.querySelector('#loopVideo');
+          const responseVideo = document.querySelector('#responseVideo');
+
+          window.addEventListener('load', function() {
+              chatContainer.innerHTML = '';
+              
+              // Obtener el JSON dinámicamente aquí
+              fetch('/api/json')
+                  .then(response => response.json())
+                  .then(data => {
+                      const container = document.getElementById('button-container');
+                      data.botones[0].options.forEach(option => {
+                          const buttonElement = document.createElement('button');
+                          buttonElement.innerText = option.label;
+                          buttonElement.value = option.value.input.text;
+                          container.appendChild(buttonElement);
+                      });
+                  });
+          });
+
+          chatForm.addEventListener('submit', function(event) {
+              recognition.stop();
+              event.preventDefault();
+              const question = document.querySelector('#question').value;
+              fetch('/text', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({question: question})
+              })
+              .then(response => response.json())
+              .then(response => {
+
+                document.getElementById('chat-container').innerHTML = '';
+
+                  const p = document.createElement('p');
+                  p.textContent = response.text;
+                  chatContainer.appendChild(p);
+                  setTimeout(function() {
+                      chatContainer.scrollTop = chatContainer.scrollHeight;
+                      console.log('Scrolling chat container');
+                  }, 100);
+
+                  
+                  responseVideoPlaying = true;
+                  responseVideo.src = response.video;
+                  responseVideo.classList.remove('hidden');
+              });
+              document.querySelector('#question').value = "";
+          });
+
+          if (firstTime) {
+              firstTime = false;
+              document.querySelector('#question').value = "Comenzar";
+              chatForm.dispatchEvent(new Event('submit'));
+          }
+
+          // Cuando el video de respuesta termine, volver a ocultarlo
+          responseVideo.addEventListener('ended', function() {
+              if (responseVideoPlaying) {
+                  responseVideoPlaying = false;
+                  responseVideo.classList.add('hidden');
+                  loopVideo.classList.remove('hidden');
+              }
+          });
+
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'es';
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+
+          document.querySelector('img').onclick = function() {
+              recognition.start();
+          }
+
+          recognition.onresult = function(event) {
+              const speechResult = event.results[0][0].transcript;
+              document.querySelector('#question').value = speechResult;
+          }
+      </script>
+    </div>
+</body>
+</html>
